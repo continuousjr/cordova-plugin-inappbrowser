@@ -85,6 +85,8 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.StringTokenizer;
 
+import java.io.UnsupportedEncodingException;
+
 @SuppressLint("SetJavaScriptEnabled")
 public class InAppBrowser extends CordovaPlugin {
 
@@ -117,6 +119,7 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String FOOTER = "footer";
     private static final String FOOTER_COLOR = "footercolor";
     private static final String BEFORELOAD = "beforeload";
+    private static final String METHOD = "method";
 
     private static final List customizableOptions = Arrays.asList(CLOSE_BUTTON_CAPTION, TOOLBAR_COLOR, NAVIGATION_COLOR, CLOSE_BUTTON_COLOR, FOOTER_COLOR);
 
@@ -149,6 +152,7 @@ public class InAppBrowser extends CordovaPlugin {
     private String beforeload = "";
     private String[] allowedSchemes;
     private InAppBrowserClient currentClient;
+    private String method = "get";
 
     /**
      * Executes the request and returns PluginResult.
@@ -632,6 +636,7 @@ public class InAppBrowser extends CordovaPlugin {
         showZoomControls = true;
         openWindowHidden = false;
         mediaPlaybackRequiresUserGesture = false;
+        method = "get";
 
         if (features != null) {
             String show = features.get(LOCATION);
@@ -709,6 +714,11 @@ public class InAppBrowser extends CordovaPlugin {
             }
             if (features.get(BEFORELOAD) != null) {
                 beforeload = features.get(BEFORELOAD);
+            }
+
+            String methodValue = features.get(METHOD);
+            if (methodValue != null && "post".compareToIgnoreCase(methodValue) == 0) {
+                method = "post";
             }
         }
 
@@ -1029,7 +1039,24 @@ public class InAppBrowser extends CordovaPlugin {
                     CookieManager.getInstance().setAcceptThirdPartyCookies(inAppWebView,true);
                 }
 
-                inAppWebView.loadUrl(url);
+                if (method.equals("post")) {
+                    String[] urlParts = url.split("\\?");
+                    String baseUrl = urlParts[0];
+                    String params = urlParts.length > 1 ? urlParts[1] : "";
+
+                    byte[] paramsBytes = new byte[]{};
+
+                    try {
+                        paramsBytes = params.getBytes("UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        LOG.e(LOG_TAG, "Cannot convert String to UTF bytes");
+                    }
+
+                    inAppWebView.postUrl(baseUrl, paramsBytes);
+                } else {
+                    inAppWebView.loadUrl(url);
+                }
+
                 inAppWebView.setId(Integer.valueOf(6));
                 inAppWebView.getSettings().setLoadWithOverviewMode(true);
                 inAppWebView.getSettings().setUseWideViewPort(useWideViewPort);

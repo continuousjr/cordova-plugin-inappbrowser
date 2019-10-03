@@ -108,12 +108,16 @@ static CDVUIInAppBrowser* instance = nil;
             target = kInAppBrowserTargetSystem;
         }
 
-        if ([target isEqualToString:kInAppBrowserTargetSelf]) {
-            [self openInCordovaWebView:absoluteUrl withOptions:options];
-        } else if ([target isEqualToString:kInAppBrowserTargetSystem]) {
+        if ([target isEqualToString:kInAppBrowserTargetSystem]) {
             [self openInSystem:absoluteUrl];
+        } else {
+            NSURLRequest* request = [self requestForUrl:absoluteUrl withOptions:options];
+
+        if ([target isEqualToString:kInAppBrowserTargetSelf]) {
+                [self openInCordovaWebView:request withOptions:options];
         } else { // _blank or anything else
-            [self openInInAppBrowser:absoluteUrl withOptions:options];
+                [self openInInAppBrowser:request withOptions:options];
+            }
         }
 
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
@@ -125,7 +129,7 @@ static CDVUIInAppBrowser* instance = nil;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-- (void)openInInAppBrowser:(NSURL*)url withOptions:(NSString*)options
+- (void)openInInAppBrowser:(NSURLRequest*)request withOptions:(NSString*)options
 {
     CDVInAppBrowserOptions* browserOptions = [CDVInAppBrowserOptions parseOptions:options];
 
@@ -227,7 +231,7 @@ static CDVUIInAppBrowser* instance = nil;
     }
     _waitForBeforeload = ![_beforeload isEqualToString:@""];
 
-    [self.inAppBrowserViewController navigateTo:url];
+    [self.inAppBrowserViewController navigateWithRequest:request];
     if (!browserOptions.hidden) {
         [self show:nil];
     }
@@ -296,10 +300,8 @@ static CDVUIInAppBrowser* instance = nil;
     });
 }
 
-- (void)openInCordovaWebView:(NSURL*)url withOptions:(NSString*)options
+- (void)openInCordovaWebView:(NSURLRequest*)request withOptions:(NSString*)options
 {
-    NSURLRequest* request = [NSURLRequest requestWithURL:url];
-
 #ifdef __CORDOVA_4_0_0
     // the webview engine itself will filter for this according to <allow-navigation> policy
     // in config.xml for cordova-ios-4.0
@@ -308,7 +310,7 @@ static CDVUIInAppBrowser* instance = nil;
     if ([self.commandDelegate URLIsWhitelisted:url]) {
         [self.webView loadRequest:request];
     } else { // this assumes the InAppBrowser can be excepted from the white-list
-        [self openInInAppBrowser:url withOptions:options];
+        [self openInInAppBrowser:request withOptions:options];
     }
 #endif
 }
@@ -338,8 +340,10 @@ static CDVUIInAppBrowser* instance = nil;
     }
 
     NSURL* url = [NSURL URLWithString:urlStr];
+    NSURLRequest *request = [NSURLRequest requestWithURL:url];
+
     _waitForBeforeload = NO;
-    [self.inAppBrowserViewController navigateTo:url];
+    [self.inAppBrowserViewController navigateWithRequest:request];
 }
 
 -(void)createIframeBridge
@@ -610,6 +614,35 @@ static CDVUIInAppBrowser* instance = nil;
     }
 
     _previousStatusBarStyle = -1; // this value was reset before reapplying it. caused statusbar to stay black on ios7
+}
+
+- (NSURLRequest *) requestForUrl:(NSURL*)url withOptions:(NSString*)options
+{
+    CDVInAppBrowserOptions* browserOptions = [CDVInAppBrowserOptions parseOptions:options];
+    NSURLRequest *request = nil;
+
+    if ([@"post" caseInsensitiveCompare:browserOptions.method] == NSOrderedSame) {
+        NSString *queryString = [url query];
+        if (queryString != nil && [queryString length] > 0) {
+            NSString *absoluteString = [url absoluteString];
+            NSUInteger queryStringStart = [absoluteString rangeOfString:queryString].location;
+            NSString *urlStrWithoutParams = [absoluteString substringToIndex:queryStringStart];
+
+            url = [NSURL URLWithString:urlStrWithoutParams];
+        } else {
+           queryString = @"";
+        }
+
+        NSMutableURLRequest *mutableRequest = [[NSMutableURLRequest alloc]initWithURL: url];
+        [mutableRequest setHTTPMethod: @"POST"];
+        [mutableRequest setHTTPBody: [queryString dataUsingEncoding: NSUTF8StringEncoding]];
+
+        request = mutableRequest;
+    } else {
+        request = [NSURLRequest requestWithURL:url];
+    }
+
+    return request;
 }
 
 @end
@@ -960,10 +993,8 @@ static CDVUIInAppBrowser* instance = nil;
     });
 }
 
-- (void)navigateTo:(NSURL*)url
+- (void)navigateWithRequest:(NSURLRequest*)request
 {
-    NSURLRequest* request = [NSURLRequest requestWithURL:url];
-
     if (_userAgentLockToken != 0) {
         [self.webView loadRequest:request];
     } else {
