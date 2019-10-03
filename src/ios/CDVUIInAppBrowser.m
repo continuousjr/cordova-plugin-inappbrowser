@@ -775,7 +775,7 @@ static CDVUIInAppBrowser* instance = nil;
         [self.toolbar setItems:@[self.closeButton, flexibleSpaceButton, self.backButton, fixedSpaceButton, self.forwardButton]];
     }
 
-    self.view.backgroundColor = [UIColor grayColor];
+    self.view.backgroundColor = [UIColor whiteColor];
     [self.view addSubview:self.toolbar];
     [self.view addSubview:self.addressLabel];
     [self.view addSubview:self.spinner];
@@ -1008,9 +1008,12 @@ static CDVUIInAppBrowser* instance = nil;
 }
 
 - (void) rePositionViews {
-    if ([_browserOptions.toolbarposition isEqualToString:kInAppBrowserToolbarBarPositionTop]) {
-        [self.webView setFrame:CGRectMake(self.webView.frame.origin.x, TOOLBAR_HEIGHT, self.webView.frame.size.width, self.webView.frame.size.height)];
-        [self.toolbar setFrame:CGRectMake(self.toolbar.frame.origin.x, [self getStatusBarOffset], self.toolbar.frame.size.width, self.toolbar.frame.size.height)];
+    if (_browserOptions.toolbar && [_browserOptions.toolbarposition isEqualToString:kInAppBrowserToolbarBarPositionTop]) {
+        float statusBarOffset = [self getStatusBarOffset];
+        double webViewTop = IsAtLeastiOSVersion(@"11.0") ? (statusBarOffset + TOOLBAR_HEIGHT): TOOLBAR_HEIGHT;
+
+        [self.webView setFrame:CGRectMake(self.webView.frame.origin.x, webViewTop, self.webView.frame.size.width, self.webView.frame.size.height)];
+        [self.toolbar setFrame:CGRectMake(self.toolbar.frame.origin.x, statusBarOffset, self.toolbar.frame.size.width, self.toolbar.frame.size.height)];
     }
 }
 
