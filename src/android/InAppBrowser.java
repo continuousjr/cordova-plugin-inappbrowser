@@ -129,7 +129,8 @@ public class InAppBrowser extends CordovaPlugin {
                                                                   TOOLBAR_COLOR,
                                                                   NAVIGATION_COLOR,
                                                                   CLOSE_BUTTON_COLOR,
-                                                                  FOOTER_COLOR);
+                                                                  FOOTER_COLOR,
+                                                                  METHOD);
 
     private InAppBrowserDialog dialog;
     private WebView inAppWebView;
