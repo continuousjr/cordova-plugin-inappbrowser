@@ -1114,10 +1114,8 @@ BOOL isExiting = FALSE;
 
 - (void)navigateWithRequest:(NSURLRequest*)request
 {
-    NSURL url;
-    url = [request URL]
-    if ([url.scheme isEqualToString:@"file"]) {
-        [self.webView loadFileURL:url allowingReadAccessToURL:url];
+    if ([request.URL.scheme isEqualToString:@"file"]) {
+        [self.webView loadFileURL:request.URL allowingReadAccessToURL:request.Url];
     } else {
         [self.webView loadRequest:request];
     }
