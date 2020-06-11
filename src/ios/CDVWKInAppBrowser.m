@@ -50,6 +50,8 @@
 
 static CDVWKInAppBrowser* instance = nil;
 
+BOOL didMakePostRequest = NO;
+
 + (id) getInstance{
     return instance;
 }
@@ -707,10 +709,11 @@ static CDVWKInAppBrowser* instance = nil;
         NSMutableURLRequest *mutableRequest = [[NSMutableURLRequest alloc]initWithURL: url];
         [mutableRequest setHTTPMethod: @"POST"];
         [mutableRequest setHTTPBody: [queryString dataUsingEncoding: NSUTF8StringEncoding]];
-        NSString *path = [[NSBundle mainBundle] pathForResource:@"POSTRequestJS" ofType:@"html"];
+        NSString *path = [[NSBundle mainBundle] pathForResource:@"POSTRequestJS" ofType:@"html" inDirectory:@"www"];
         NSString *html = [[NSString alloc] initWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
-        WKWebView.navigationDelegate = self;
-        [WKWebView loadHTMLString:html baseURL:[[NSBundle mainBundle] bundleURL]];
+
+        self.inAppBrowserViewController.navigationDelegate = self;
+        [self.inAppBrowserViewController.webView  loadHTMLString:html baseURL:[[NSBundle mainBundle] bundleURL]];
         request = mutableRequest;
     } else {
         request = [NSURLRequest requestWithURL:url];
@@ -1124,9 +1127,7 @@ BOOL isExiting = FALSE;
     }
     NSString *jscript = [NSString stringWithFormat:@"post('%@', {%@});", url, queryString];
 
-    DLog(@"Javascript: %@", jscript);
-
-    [WKWebView evaluateJavaScript:jscript completionHandler:nil];
+        [self.webView evaluateJavaScript:jscript completionHandler:nil];
 
     didMakePostRequest = YES;
 }
