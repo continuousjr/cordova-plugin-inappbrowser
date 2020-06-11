@@ -111,13 +111,13 @@ static CDVWKInAppBrowser* instance = nil;
         } else {
             NSURLRequest* request = [self requestForUrl:absoluteUrl withOptions:options];
 
-        if ([target isEqualToString:kInAppBrowserTargetSelf]) {
-                [self openInCordovaWebView:request withOptions:options];
-        } else { // _blank or anything else
-                [self openInInAppBrowser:request withOptions:options];
+            if ([target isEqualToString:kInAppBrowserTargetSelf]) {
+                    [self openInCordovaWebView:request withOptions:options];
+            } else { // _blank or anything else
+                    [self openInInAppBrowser:request withOptions:options];
+                }
             }
-        }
-        
+
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     } else {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"incorrect number of arguments"];
@@ -508,15 +508,10 @@ static CDVWKInAppBrowser* instance = nil;
     NSString* httpMethod = navigationAction.request.HTTPMethod;
     NSString* errorMessage = nil;
     
-    if([_beforeload isEqualToString:@"post"]){
-        //TODO handle POST requests by preserving POST data then remove this condition
-        errorMessage = @"beforeload doesn't yet support POST requests";
-    }
-    else if(isTopLevelNavigation && (
+     if(isTopLevelNavigation && (
            [_beforeload isEqualToString:@"yes"]
        || ([_beforeload isEqualToString:@"get"] && [httpMethod isEqualToString:@"GET"])
-    // TODO comment in when POST requests are handled
-    // || ([_beforeload isEqualToString:@"post"] && [httpMethod isEqualToString:@"POST"])
+       || ([_beforeload isEqualToString:@"post"] && [httpMethod isEqualToString:@"POST"])
     )){
         useBeforeLoad = YES;
     }
@@ -712,7 +707,10 @@ static CDVWKInAppBrowser* instance = nil;
         NSMutableURLRequest *mutableRequest = [[NSMutableURLRequest alloc]initWithURL: url];
         [mutableRequest setHTTPMethod: @"POST"];
         [mutableRequest setHTTPBody: [queryString dataUsingEncoding: NSUTF8StringEncoding]];
-
+        NSString *path = [[NSBundle mainBundle] pathForResource:@"POSTRequestJS" ofType:@"html"];
+        NSString *html = [[NSString alloc] initWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+        WKWebView.navigationDelegate = self;
+        [WKWebView loadHTMLString:html baseURL:[[NSBundle mainBundle] bundleURL]];
         request = mutableRequest;
     } else {
         request = [NSURLRequest requestWithURL:url];
@@ -1112,6 +1110,27 @@ BOOL isExiting = FALSE;
     });
 }
 
+- (void)makePostRequest:(NSURL*)url
+{
+    NSString *queryString = [url query];
+    if (queryString != nil && [queryString length] > 0) {
+        NSString *absoluteString = [url absoluteString];
+        NSUInteger queryStringStart = [absoluteString rangeOfString:queryString].location;
+        NSString *urlStrWithoutParams = [absoluteString substringToIndex:queryStringStart];
+
+        url = [NSURL URLWithString:urlStrWithoutParams];
+    } else {
+       queryString = @"";
+    }
+    NSString *jscript = [NSString stringWithFormat:@"post('%@', {%@});", url, queryString];
+
+    DLog(@"Javascript: %@", jscript);
+
+    [WKWebView evaluateJavaScript:jscript completionHandler:nil];
+
+    didMakePostRequest = YES;
+}
+
 - (void)navigateWithRequest:(NSURLRequest*)request
 {
     if ([request.URL.scheme isEqualToString:@"file"]) {
@@ -1212,8 +1231,11 @@ BOOL isExiting = FALSE;
 - (void)webView:(WKWebView *)theWebView didFinishNavigation:(WKNavigation *)navigation
 {
     // update url, stop spinner, update back/forward
-    
+
     self.addressLabel.text = [self.currentURL absoluteString];
+            if (!didMakePostRequest) {
+                [self makePostRequest:self.addressLabel.text  ];
+            }
     self.backButton.enabled = theWebView.canGoBack;
     self.forwardButton.enabled = theWebView.canGoForward;
     theWebView.scrollView.contentInset = UIEdgeInsetsZero;
@@ -1221,6 +1243,7 @@ BOOL isExiting = FALSE;
     [self.spinner stopAnimating];
 
     [self.navigationDelegate didFinishNavigation:theWebView];
+
 }
     
 - (void)webView:(WKWebView*)theWebView failedNavigation:(NSString*) delegateName withError:(nonnull NSError *)error{
