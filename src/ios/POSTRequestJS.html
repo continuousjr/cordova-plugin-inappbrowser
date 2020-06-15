@@ -1,30 +1,33 @@
 <html>
 <head>
     <script>
-      //POST request example:
-      //post('URL', {key: 'value'});
-      function post(path, params) {
+      function onLoad(){
+        var params = new URLSearchParams(window.location.search);
         var method = "post";
         var form = document.createElement("form");
+        var action = params.get("action");
         form.setAttribute("method", method);
-        form.setAttribute("action", path);
+        form.setAttribute("action", action);
+        params.delete("action");
 
-        for(var key in params) {
-          if(params.hasOwnProperty(key)) {
-            var hiddenField = document.createElement("input");
-            hiddenField.setAttribute("type", "hidden");
-            hiddenField.setAttribute("name", key);
-            hiddenField.setAttribute("value", params[key]);
-
-            form.appendChild(hiddenField);
-          }
+        var entries = params.entries();
+        for(pair of entries) {
+          var hiddenField = document.createElement("input");
+          hiddenField.setAttribute("type", "hidden");
+          hiddenField.setAttribute("name", pair[0]);
+          hiddenField.setAttribute("value", decodeURIComponent(pair[1]));
+          form.appendChild(hiddenField);
         }
 
         document.body.appendChild(form);
+        browser.history.deleteAll();
         form.submit();
       }
+
+
     </script>
 </head>
-<body>
+<body onload="onLoad()">
+
 </body>
 </html>
