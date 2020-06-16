@@ -33,6 +33,7 @@
 #define    kInAppBrowserToolbarBarPositionTop @"top"
 
 #define    IAB_BRIDGE_NAME @"cordova_iab"
+#define    CLOSE_NAME @"close"
 
 #define    TOOLBAR_HEIGHT 44.0
 #define    STATUSBAR_HEIGHT 20.0
@@ -49,8 +50,6 @@
 @implementation CDVWKInAppBrowser
 
 static CDVWKInAppBrowser* instance = nil;
-
-BOOL makePostRequest = NO;
 
 + (id) getInstance{
     return instance;
@@ -570,6 +569,7 @@ BOOL makePostRequest = NO;
     }
 }
 
+
 #pragma mark WKScriptMessageHandler delegate
 - (void)userContentController:(nonnull WKUserContentController *)userContentController didReceiveScriptMessage:(nonnull WKScriptMessage *)message {
 
@@ -662,6 +662,9 @@ BOOL makePostRequest = NO;
     }
 
     [self.inAppBrowserViewController.configuration.userContentController removeScriptMessageHandlerForName:IAB_BRIDGE_NAME];
+
+    [self.inAppBrowserViewController.configuration.userContentController removeScriptMessageHandlerForName:CLOSE_NAME];
+
     self.inAppBrowserViewController.configuration = nil;
 
     [self.inAppBrowserViewController.webView stopLoading];
@@ -774,6 +777,7 @@ BOOL isExiting = FALSE;
     configuration.processPool = [[CDVWKProcessPoolFactory sharedFactory] sharedProcessPool];
 #endif
     [configuration.userContentController addScriptMessageHandler:self name:IAB_BRIDGE_NAME];
+    [configuration.userContentController addScriptMessageHandler:self name:CLOSE_NAME];
 
     //WKWebView options
     configuration.allowsInlineMediaPlayback = _browserOptions.allowinlinemediaplayback;
@@ -1111,26 +1115,6 @@ BOOL isExiting = FALSE;
     });
 }
 
-- (void)makePostRequest:(NSString*)urlString
-{
-    NSURL *url = [NSURL URLWithString:urlString];
-    NSString *queryString = [url query];
-    if (queryString != nil && [queryString length] > 0) {
-        NSString *absoluteString = [url absoluteString];
-        NSUInteger queryStringStart = [absoluteString rangeOfString:queryString].location;
-        NSString *urlStrWithoutParams = [absoluteString substringToIndex:queryStringStart];
-
-        url = [NSURL URLWithString:urlStrWithoutParams];
-    } else {
-       queryString = @"";
-    }
-    NSString *jscript = [NSString stringWithFormat:@"post('%@', {%@});", url, queryString];
-
-        [self.webView evaluateJavaScript:jscript completionHandler:nil];
-
-    makePostRequest = NO;
-}
-
 - (void)navigateWithRequest:(NSURLRequest*)request
 {
     if ([request.URL.scheme isEqualToString:@"file"]) {
@@ -1233,29 +1217,26 @@ BOOL isExiting = FALSE;
     // update url, stop spinner, update back/forward
 
     self.addressLabel.text = [self.currentURL absoluteString];
-//            if (makePostRequest) {
-//                [self makePostRequest:self.addressLabel.text  ];
-//            }
     self.backButton.enabled = theWebView.canGoBack;
     self.forwardButton.enabled = theWebView.canGoForward;
     theWebView.scrollView.contentInset = UIEdgeInsetsZero;
-    
+
     [self.spinner stopAnimating];
 
     [self.navigationDelegate didFinishNavigation:theWebView];
 
 }
-    
+
 - (void)webView:(WKWebView*)theWebView failedNavigation:(NSString*) delegateName withError:(nonnull NSError *)error{
     // log fail message, stop spinner, update back/forward
     NSLog(@"webView:%@ - %ld: %@", delegateName, (long)error.code, [error localizedDescription]);
-    
+
     self.backButton.enabled = theWebView.canGoBack;
     self.forwardButton.enabled = theWebView.canGoForward;
     [self.spinner stopAnimating];
-    
+
     self.addressLabel.text = NSLocalizedString(@"Load Error", nil);
-    
+
     [self.navigationDelegate webView:theWebView didFailNavigation:error];
 }
 
@@ -1263,7 +1244,7 @@ BOOL isExiting = FALSE;
 {
     [self webView:theWebView failedNavigation:@"didFailNavigation" withError:error];
 }
-    
+
 - (void)webView:(WKWebView*)theWebView didFailProvisionalNavigation:(null_unspecified WKNavigation *)navigation withError:(nonnull NSError *)error
 {
     [self webView:theWebView failedNavigation:@"didFailProvisionalNavigation" withError:error];
@@ -1271,6 +1252,10 @@ BOOL isExiting = FALSE;
 
 #pragma mark WKScriptMessageHandler delegate
 - (void)userContentController:(nonnull WKUserContentController *)userContentController didReceiveScriptMessage:(nonnull WKScriptMessage *)message {
+    if ([message.name isEqualToString:CLOSE_NAME]) {
+        [self close];
+    }
+
     if (![message.name isEqualToString:IAB_BRIDGE_NAME]) {
         return;
     }

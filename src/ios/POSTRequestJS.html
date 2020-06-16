@@ -1,6 +1,10 @@
 <html>
 <head>
     <script>
+      window.onpageshow = function(event) {
+        onLoad();
+      };
+
       function onLoad(){
         var params = new URLSearchParams(window.location.search);
         var method = "post";
@@ -20,14 +24,16 @@
         }
 
         document.body.appendChild(form);
-        browser.history.deleteAll();
+        // if we return to this window, tell wkwebkit to close or fallback to resend post
+        window.onpageshow = function(event){
+          window.webkit.messageHandlers.close.postMessage("");
+          onLoad();
+        };
         form.submit();
       }
-
-
     </script>
 </head>
-<body onload="onLoad()">
-
+<body>
 </body>
 </html>
+
