@@ -1215,13 +1215,16 @@ BOOL isExiting = FALSE;
 - (void)webView:(WKWebView *)theWebView didFinishNavigation:(WKNavigation *)navigation
 {
     // update url, stop spinner, update back/forward
+    NSString *postFileLocation = [[NSBundle mainBundle] pathForResource:@"POSTRequestJS" ofType:@"html" inDirectory:@"www/www"];
+    NSURL *fileUrlPath = [NSURL fileURLWithPath:postFileLocation];
+    if ([[self.currentURL absoluteString] rangeOfString:[fileUrlPath absoluteString]].location == NSNotFound) {
+      self.addressLabel.text = [self.currentURL absoluteString];
+      self.backButton.enabled = theWebView.canGoBack;
+      self.forwardButton.enabled = theWebView.canGoForward;
+      theWebView.scrollView.contentInset = UIEdgeInsetsZero;
 
-    self.addressLabel.text = [self.currentURL absoluteString];
-    self.backButton.enabled = theWebView.canGoBack;
-    self.forwardButton.enabled = theWebView.canGoForward;
-    theWebView.scrollView.contentInset = UIEdgeInsetsZero;
-
-    [self.spinner stopAnimating];
+      [self.spinner stopAnimating];
+    }
 
     [self.navigationDelegate didFinishNavigation:theWebView];
 
